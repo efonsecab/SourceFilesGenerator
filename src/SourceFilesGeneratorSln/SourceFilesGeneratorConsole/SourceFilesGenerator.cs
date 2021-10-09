@@ -26,17 +26,25 @@ namespace TestGenerateAdminCode
         /// <param name="blazorFilesDestFolder">Folder where to place generated blazor files</param>
         /// <param name="assembliesDirectory">Folder where to search for assemblies</param>
         /// <param name="dataAccessAssemblyName">FullName for the assembly with the DbContext</param>
-        public void GenerateFiles(string modelsDestFolder, string blazorFilesDestFolder, 
-            string assembliesDirectory, string dataAccessAssemblyName)
+        public void GenerateFiles(string modelsDestFolder, string blazorFilesDestFolder,
+            string assembliesDirectory, string dataAccessAssemblyName,
+            string apiControllersDestFolder, string entitiesNamespace)
         {
             List<TypeMapping> mappedTypes = new List<TypeMapping>(); ;
             var assembliesInDir = Directory.GetFiles(assembliesDirectory, "*.dll");
             foreach (var singleAssemblyFile in assembliesInDir)
             {
-                AssemblyLoadContext.Default.LoadFromAssemblyPath(singleAssemblyFile);
+                try
+                {
+                    AssemblyLoadContext.Default.LoadFromAssemblyPath(singleAssemblyFile);
+                }
+                catch (Exception ex)
+                {
+
+                }
             }
 
-            var dataAccessAssembly = AppDomain.CurrentDomain.GetAssemblies().Where(p => p.FullName == dataAccessAssemblyName).Single();
+            var dataAccessAssembly = AppDomain.CurrentDomain.GetAssemblies().Where(p => p.GetName().Name == dataAccessAssemblyName).Single();
             var dbContext = dataAccessAssembly.GetTypes().Where(p => p.BaseType.Name == "DbContext").Single();
             var dbSets = dbContext.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
             foreach (var singleDbSet in dbSets)
@@ -44,7 +52,9 @@ namespace TestGenerateAdminCode
                 var entityType = singleDbSet.PropertyType.GenericTypeArguments.Single();
                 var entityProperties = entityType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
                 string csCode = GenerateModelCode(dataAccessAssembly, entityType, entityProperties);
-                var blazorCreatePageCode = GenerateBlazorCreatePageCode(dataAccessAssembly, entityType, entityProperties);
+                string blazorCreatePageCode = GenerateBlazorCreatePageCode(dataAccessAssembly, entityType, entityProperties);
+                string apiControllerCode = GenerateApiControllerCode(dataAccessAssembly, entityType, entityProperties, dbContext.Name, dbContext.Namespace,
+                    entitiesNamespace);
                 TypeMapping typeMapping = new TypeMapping()
                 {
                     SourceType = entityType,
@@ -52,7 +62,8 @@ namespace TestGenerateAdminCode
                     BlazorCrud = new BlazorCrud()
                     {
                         CreatePageCodeString = blazorCreatePageCode
-                    }
+                    },
+                    DestApiControllerCodeString = apiControllerCode
                 };
                 mappedTypes.Add(typeMapping);
             }
@@ -61,8 +72,14 @@ namespace TestGenerateAdminCode
                 string modelFileName = Path.Combine(modelsDestFolder, $"{singleMappedType.DestModelName}.cs");
                 File.WriteAllText(modelFileName, singleMappedType.DestModelTypeCodeString);
 
-                string blazorCreatePageFileName = Path.Combine(blazorFilesDestFolder, $"{singleMappedType.DestModelName}.razor");
+                string blazorCreatePageFileName = Path.Combine(blazorFilesDestFolder,@$"Admin\{singleMappedType.SourceTypeName}", $"Create.razor");
+                var blazorCreatePagedir = Directory.GetParent(blazorCreatePageFileName);
+                if (!Directory.Exists(blazorCreatePagedir.FullName))
+                    Directory.CreateDirectory(blazorCreatePagedir.FullName);
                 File.WriteAllText(blazorCreatePageFileName, singleMappedType.BlazorCrud.CreatePageCodeString);
+
+                string apiControllerFileName = Path.Combine(apiControllersDestFolder, $"{singleMappedType.DestModelName}Controller.cs");
+                File.WriteAllText(apiControllerFileName, singleMappedType.DestApiControllerCodeString);
             }
         }
 
@@ -169,6 +186,39 @@ namespace TestGenerateAdminCode
             var parsedDoc = RazorSyntaxTree.Parse(document);
             return blazorPageCode;
         }
+
+        private static string GenerateApiControllerCode(Assembly dataAccessAssembly, Type entityType, PropertyInfo[] entityProperties,
+            string dbContextName, string dbContextNamespace, string entitiesNamespace)
+        {
+            StringBuilder strBuilder = new StringBuilder();
+            strBuilder.AppendLine("using Microsoft.AspNetCore.Mvc;");
+            strBuilder.AppendLine("using System.Threading.Tasks;");
+            strBuilder.AppendLine("using Microsoft.EntityFrameworkCore;");
+            strBuilder.AppendLine("using System.Linq;");
+            strBuilder.AppendLine("using AutoMapper;");
+            strBuilder.AppendLine($"using {dbContextNamespace};");
+            strBuilder.AppendLine($"using {entitiesNamespace};");
+            strBuilder.AppendLine();
+            strBuilder.AppendLine("[Route(\"api/[controller]\")]");
+            strBuilder.AppendLine("[ApiController]");
+            strBuilder.AppendLine($"public partial class {entityType.Name}Controller : ControllerBase");
+            strBuilder.AppendLine("{");
+            strBuilder.AppendLine($"private {dbContextName} _{dbContextName.ToLower()};");
+            strBuilder.AppendLine($"private IMapper _mapper;");
+            strBuilder.AppendLine($"public {entityType.Name}Controller({dbContextName} {dbContextName.ToLower()}, IMapper mapper)");
+            strBuilder.AppendLine("{");
+            strBuilder.AppendLine($"this._{dbContextName.ToLower()} = {dbContextName.ToLower()};");
+            strBuilder.AppendLine($"this._mapper = mapper;");
+            strBuilder.AppendLine("}");
+            strBuilder.AppendLine("[HttpGet(\"[action]\")]");
+            strBuilder.AppendLine($"public async Task<{entityType.Name}Model[]> List{entityType.Name}()");
+            strBuilder.AppendLine("{");
+            strBuilder.AppendLine($"return await this._{dbContextName.ToLower()}.{entityType.Name}.Select(p => this._mapper.Map<{entityType.Name}, {entityType.Name}Model>(p)).ToArrayAsync();");
+            strBuilder.AppendLine("}");
+            strBuilder.AppendLine("}");
+            var csCode = CSharpSyntaxTree.ParseText(strBuilder.ToString()).GetRoot().NormalizeWhitespace().ToFullString();
+            return csCode;
+        }
     }
 
     public class TypeMapping
@@ -178,6 +228,7 @@ namespace TestGenerateAdminCode
         public string DestModelName => $"{SourceTypeName}Model";
         public string DestModelTypeCodeString { get; set; }
         public BlazorCrud BlazorCrud { get; set; }
+        public string DestApiControllerCodeString { get; set; }
     }
 
     public class BlazorCrud

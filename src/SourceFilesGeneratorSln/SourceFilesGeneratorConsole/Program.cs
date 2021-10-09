@@ -1,21 +1,36 @@
-﻿using System;
+﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
+using System;
 using System.IO;
+using System.Threading.Tasks;
 using TestGenerateAdminCode;
 
 namespace SourceFilesGeneratorConsole
 {
     class Program
     {
-        static void Main(string[] args)
+        private static string modelsDestinationFolder;
+        private static string blazorFilesDestinationFolder;
+        private static string apiControllersDestinationFolder;
+        private static string sourceAssembliesDirectory;
+        private static string sourceDataAccessAssemblyName;
+        private static string sourceEntitiesNamespace;
+
+        static async Task Main(string[] args)
         {
-            string modelsDestFolder = @"";
-            string blazorFilesDestFolder = @"";
-            string assembliesDirectory = @"";
-            string dataAccessAssemblyName = @"";
+            var config = new ConfigurationBuilder().AddUserSecrets<Program>().Build(); ;
+            modelsDestinationFolder = config["ModelsDestinationFolder"];
+            blazorFilesDestinationFolder = config["BlazorFilesDestinationFolder"];
+            apiControllersDestinationFolder = config["ApiControllersDestinationFolder"];
+            sourceAssembliesDirectory = config["SourceAssembliesDirectory"];
+            sourceDataAccessAssemblyName = config["SourceDataAccessAssemblyName"];
+            sourceEntitiesNamespace = config["SourceEntitiesNamespace"];
 
             SourceFilesGenerator sourceFilesGenerator = new SourceFilesGenerator();
-            sourceFilesGenerator.GenerateFiles(modelsDestFolder, blazorFilesDestFolder, assembliesDirectory,
-                dataAccessAssemblyName);
+            sourceFilesGenerator.GenerateFiles(modelsDestinationFolder, blazorFilesDestinationFolder, 
+                sourceAssembliesDirectory,
+                sourceDataAccessAssemblyName, apiControllersDestinationFolder, 
+                sourceEntitiesNamespace);
         }
     }
 }
