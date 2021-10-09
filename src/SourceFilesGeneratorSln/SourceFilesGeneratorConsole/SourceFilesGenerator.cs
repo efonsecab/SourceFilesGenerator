@@ -78,7 +78,7 @@ namespace TestGenerateAdminCode
                     Directory.CreateDirectory(blazorCreatePagedir.FullName);
                 File.WriteAllText(blazorCreatePageFileName, singleMappedType.BlazorCrud.CreatePageCodeString);
 
-                string apiControllerFileName = Path.Combine(apiControllersDestFolder, $"{singleMappedType.DestModelName}Controller.cs");
+                string apiControllerFileName = Path.Combine(apiControllersDestFolder, $"{singleMappedType.SourceType.Name}Controller.cs");
                 File.WriteAllText(apiControllerFileName, singleMappedType.DestApiControllerCodeString);
             }
         }
