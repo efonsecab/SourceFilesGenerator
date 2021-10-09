@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -90,6 +91,7 @@ namespace TestGenerateAdminCode
         {
             StringBuilder strBuilder = new StringBuilder();
             strBuilder.AppendLine("using System;");
+            strBuilder.AppendLine("using System.ComponentModel.DataAnnotations;");
             strBuilder.AppendLine();
             strBuilder.AppendLine($"public partial class {entityType.Name}Model");
             strBuilder.AppendLine("{");
@@ -119,6 +121,20 @@ namespace TestGenerateAdminCode
                 }
                 else
                 {
+                    var customAttributes = singlePropertyinEntity.GetCustomAttributes();
+                    if (customAttributes.Count() > 0)
+                    {
+                        StringLengthAttribute stringLengthAttribute = singlePropertyinEntity.GetCustomAttribute<StringLengthAttribute>();
+                        if (stringLengthAttribute != null)
+                        {
+                            strBuilder.AppendLine($"[StringLength({stringLengthAttribute.MaximumLength})]");
+                        }
+                        RequiredAttribute requiredAttribute = singlePropertyinEntity.GetCustomAttribute<RequiredAttribute>();
+                        if (requiredAttribute != null)
+                        {
+                            strBuilder.AppendLine("[Required]");
+                        }
+                    }
                     strBuilder.AppendLine($"public {propertyType} {propertyName} {{get;set;}}");
                 }
             }
