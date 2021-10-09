@@ -31,10 +31,11 @@ namespace TestGenerateAdminCode
         /// <param name="entitiesNamespace">Namespace where to search for the Source Entity Framework entities</param>
         /// <param name="basePagesRoute">Base route for the autogenenrated blazor pages</param>
         /// <param name="keepNullable">When set to false, will force the generated properties to be non-nullable</param>
+        /// <param name="autoMappingProfileDestinationFolder">Folder where to place generated automapper profile</param>
         public void GenerateFiles(string modelsDestFolder, string blazorFilesDestFolder,
             string assembliesDirectory, string dataAccessAssemblyName,
             string apiControllersDestFolder, string entitiesNamespace, string basePagesRoute,
-            bool keepNullable)
+            bool keepNullable, string autoMappingProfileDestinationFolder)
         {
             List<TypeMapping> mappedTypes = new List<TypeMapping>(); ;
             var assembliesInDir = Directory.GetFiles(assembliesDirectory, "*.dll");
@@ -87,6 +88,14 @@ namespace TestGenerateAdminCode
                 string apiControllerFileName = Path.Combine(apiControllersDestFolder, $"{singleMappedType.SourceType.Name}Controller.cs");
                 File.WriteAllText(apiControllerFileName, singleMappedType.DestApiControllerCodeString);
             }
+            var entitTypes = dbSets.Select(p => p.PropertyType.GenericTypeArguments.Single()).ToList();
+            var globalProfileCode = GenerateAutoMappingGlobalProfile(entitTypes, entitiesNamespace);
+            string autoMapperProfileFileName = Path.Combine(autoMappingProfileDestinationFolder, "GlobalMappingProfile.cs");
+            if (!Directory.Exists(Directory.GetParent(autoMapperProfileFileName).FullName))
+            {
+                Directory.CreateDirectory(Directory.GetParent(autoMapperProfileFileName).FullName);
+            }
+            File.WriteAllText(autoMapperProfileFileName, globalProfileCode);
         }
 
         private static string GenerateModelCode(Assembly dataAccessAssembly, Type entityType, PropertyInfo[] entityProperties,
@@ -160,7 +169,9 @@ namespace TestGenerateAdminCode
             CodeWriter codeWriter = new CodeWriter();
             codeWriter.WriteLine($"@page \"{basePageRoute}/{entityType.Name}/Create\"");
             codeWriter.WriteLine();
-            codeWriter.WriteLine("<EditForm Model=\"@_model\">");
+            codeWriter.WriteLine("<EditForm Model=\"@_model\" OnValidSubmit=\"OnValidSubmit\">");
+            codeWriter.WriteLine("<DataAnnotationsValidator></DataAnnotationsValidator>");
+            codeWriter.WriteLine("<ValidationSummary></ValidationSummary>");
             List<string> variables = new List<string>();
             foreach (var singlePropertyinEntity in entityProperties)
             {
@@ -208,14 +219,48 @@ namespace TestGenerateAdminCode
                     codeWriter.WriteLine("</div>");
                 }
             }
+            codeWriter.WriteLine("<button type=\"submit\" class=\"btn btn-primary\">Submit</button>");
             codeWriter.WriteLine("</EditForm>");
             codeWriter.WriteLine("@code{");
             codeWriter.WriteLine($"public {entityType.Name}Model _model {{get;set;}}=new {entityType.Name}Model();");
+            codeWriter.WriteLine("[Inject]");
+            codeWriter.WriteLine("private HttpClient _httpClient {get;set;}");
+            codeWriter.WriteLine("[Inject]");
+            codeWriter.WriteLine("private NavigationManager _navigationManager {get;set;}");
+            codeWriter.WriteLine("private async Task OnValidSubmit()");
+            codeWriter.WriteLine("{");
+            codeWriter.WriteLine($"string requesturl = \"api/{entityType.Name}/Add{entityType.Name}\";");
+            codeWriter.WriteLine($"var response = await this._httpClient.PostAsJsonAsync<{entityType.Name}Model>(requesturl, _model);");
+            codeWriter.WriteLine("if (response.IsSuccessStatusCode)");
+            codeWriter.WriteLine("{");
+            codeWriter.WriteLine($"_navigationManager.NavigateTo(_navigationManager.Uri.Replace(\"{entityType.Name}/Create\", \"{entityType.Name}/List\"));");
+            codeWriter.WriteLine("}");
+            codeWriter.WriteLine("}");
             codeWriter.WriteLine("}");
             var blazorPageCode = codeWriter.GenerateCode();
             var document = RazorSourceDocument.Create(blazorPageCode, $"Admin/{entityType.Name}/List.razor");
             var parsedDoc = RazorSyntaxTree.Parse(document);
             return blazorPageCode;
+        }
+
+        private static string GenerateAutoMappingGlobalProfile(List<Type> entityTpes, string entitiesNamespace)
+        {
+            StringBuilder strBuilder = new StringBuilder();
+            strBuilder.AppendLine("using AutoMapper;");
+            strBuilder.AppendLine($"using {entitiesNamespace};");
+            strBuilder.AppendLine("public class GlobalMappingProfile: Profile");
+            strBuilder.AppendLine("{");
+            strBuilder.AppendLine("public GlobalMappingProfile()");
+            strBuilder.AppendLine("{");
+            foreach (var singleEntityType in entityTpes)
+            {
+                strBuilder.AppendLine($"this.CreateMap<{singleEntityType.Name}, {singleEntityType.Name}Model>();");
+                strBuilder.AppendLine($"this.CreateMap<{singleEntityType.Name}Model, {singleEntityType.Name}>();");
+            }
+            strBuilder.AppendLine("}");
+            strBuilder.AppendLine("}");
+            var csCode = CSharpSyntaxTree.ParseText(strBuilder.ToString()).GetRoot().NormalizeWhitespace().ToFullString();
+            return csCode;
         }
 
         private static string GenerateApiControllerCode(Assembly dataAccessAssembly, Type entityType, PropertyInfo[] entityProperties,
