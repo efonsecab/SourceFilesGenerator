@@ -210,14 +210,33 @@ namespace TestGenerateAdminCode
             strBuilder.AppendLine($"this._{dbContextName.ToLower()} = {dbContextName.ToLower()};");
             strBuilder.AppendLine($"this._mapper = mapper;");
             strBuilder.AppendLine("}");
+            GenerateListEndpoint(entityType, dbContextName, strBuilder);
+            GenerateAddEndpoint(entityType, dbContextName, strBuilder);
+            strBuilder.AppendLine("}");
+            var csCode = CSharpSyntaxTree.ParseText(strBuilder.ToString()).GetRoot().NormalizeWhitespace().ToFullString();
+            return csCode;
+        }
+
+        private static void GenerateListEndpoint(Type entityType, string dbContextName, StringBuilder strBuilder)
+        {
             strBuilder.AppendLine("[HttpGet(\"[action]\")]");
             strBuilder.AppendLine($"public async Task<{entityType.Name}Model[]> List{entityType.Name}()");
             strBuilder.AppendLine("{");
             strBuilder.AppendLine($"return await this._{dbContextName.ToLower()}.{entityType.Name}.Select(p => this._mapper.Map<{entityType.Name}, {entityType.Name}Model>(p)).ToArrayAsync();");
             strBuilder.AppendLine("}");
+        }
+
+        private static void GenerateAddEndpoint(Type entityType, string dbContextName, StringBuilder strBuilder)
+        {
+            strBuilder.AppendLine("[HttpPost(\"[action]\")]");
+            strBuilder.AppendLine($"public async Task<{entityType.Name}Model> Add{entityType.Name}({entityType.Name}Model {entityType.Name.ToLower()}Model)");
+            strBuilder.AppendLine("{");
+            strBuilder.AppendLine($"var entity = this._mapper.Map<{entityType.Name}Model,{entityType.Name}>({entityType.Name.ToLower()}Model);");
+            strBuilder.AppendLine($"await _{dbContextName.ToLower()}.AddAsync(entity);");
+            strBuilder.AppendLine($"await _{dbContextName.ToLower()}.SaveChangesAsync();");
+            strBuilder.AppendLine($"var result = this._mapper.Map<{entityType.Name},{entityType.Name}Model>(entity);");
+            strBuilder.AppendLine("return result;");
             strBuilder.AppendLine("}");
-            var csCode = CSharpSyntaxTree.ParseText(strBuilder.ToString()).GetRoot().NormalizeWhitespace().ToFullString();
-            return csCode;
         }
     }
 
