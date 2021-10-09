@@ -15,6 +15,7 @@ namespace SourceFilesGeneratorConsole
         private static string sourceAssembliesDirectory;
         private static string sourceDataAccessAssemblyName;
         private static string sourceEntitiesNamespace;
+        private static string basePagesRoute;
 
         static async Task Main(string[] args)
         {
@@ -25,12 +26,12 @@ namespace SourceFilesGeneratorConsole
             sourceAssembliesDirectory = config["SourceAssembliesDirectory"];
             sourceDataAccessAssemblyName = config["SourceDataAccessAssemblyName"];
             sourceEntitiesNamespace = config["SourceEntitiesNamespace"];
-
+            basePagesRoute = config["BasePagesRoute"];
             SourceFilesGenerator sourceFilesGenerator = new SourceFilesGenerator();
             sourceFilesGenerator.GenerateFiles(modelsDestinationFolder, blazorFilesDestinationFolder, 
                 sourceAssembliesDirectory,
                 sourceDataAccessAssemblyName, apiControllersDestinationFolder, 
-                sourceEntitiesNamespace);
+                sourceEntitiesNamespace, basePagesRoute);
         }
     }
 }
