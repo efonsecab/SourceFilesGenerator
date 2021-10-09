@@ -30,9 +30,11 @@ namespace TestGenerateAdminCode
         /// <param name="apiControllersDestFolder">Folder where to place generated controller files</param>
         /// <param name="entitiesNamespace">Namespace where to search for the Source Entity Framework entities</param>
         /// <param name="basePagesRoute">Base route for the autogenenrated blazor pages</param>
+        /// <param name="keepNullable">When set to false, will force the generated properties to be non-nullable</param>
         public void GenerateFiles(string modelsDestFolder, string blazorFilesDestFolder,
             string assembliesDirectory, string dataAccessAssemblyName,
-            string apiControllersDestFolder, string entitiesNamespace, string basePagesRoute)
+            string apiControllersDestFolder, string entitiesNamespace, string basePagesRoute,
+            bool keepNullable)
         {
             List<TypeMapping> mappedTypes = new List<TypeMapping>(); ;
             var assembliesInDir = Directory.GetFiles(assembliesDirectory, "*.dll");
@@ -55,7 +57,7 @@ namespace TestGenerateAdminCode
             {
                 var entityType = singleDbSet.PropertyType.GenericTypeArguments.Single();
                 var entityProperties = entityType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-                string csCode = GenerateModelCode(dataAccessAssembly, entityType, entityProperties);
+                string csCode = GenerateModelCode(dataAccessAssembly, entityType, entityProperties, keepNullable);
                 string blazorCreatePageCode = GenerateBlazorCreatePageCode(dataAccessAssembly, entityType, entityProperties, basePagesRoute);
                 string apiControllerCode = GenerateApiControllerCode(dataAccessAssembly, entityType, entityProperties, dbContext.Name, dbContext.Namespace,
                     entitiesNamespace);
@@ -76,7 +78,7 @@ namespace TestGenerateAdminCode
                 string modelFileName = Path.Combine(modelsDestFolder, $"{singleMappedType.DestModelName}.cs");
                 File.WriteAllText(modelFileName, singleMappedType.DestModelTypeCodeString);
 
-                string blazorCreatePageFileName = Path.Combine(blazorFilesDestFolder,@$"{singleMappedType.SourceTypeName}", $"Create.razor");
+                string blazorCreatePageFileName = Path.Combine(blazorFilesDestFolder, @$"{singleMappedType.SourceTypeName}", $"Create.razor");
                 var blazorCreatePagedir = Directory.GetParent(blazorCreatePageFileName);
                 if (!Directory.Exists(blazorCreatePagedir.FullName))
                     Directory.CreateDirectory(blazorCreatePagedir.FullName);
@@ -87,7 +89,8 @@ namespace TestGenerateAdminCode
             }
         }
 
-        private static string GenerateModelCode(Assembly dataAccessAssembly, Type entityType, PropertyInfo[] entityProperties)
+        private static string GenerateModelCode(Assembly dataAccessAssembly, Type entityType, PropertyInfo[] entityProperties,
+            bool keepNullable)
         {
             StringBuilder strBuilder = new StringBuilder();
             strBuilder.AppendLine("using System;");
@@ -105,8 +108,16 @@ namespace TestGenerateAdminCode
                 else
                 if (Nullable.GetUnderlyingType(singlePropertyinEntity.PropertyType) != null)
                 {
-                    propertyType =
-                        $"{singlePropertyinEntity.PropertyType.GenericTypeArguments.First().Name}?";
+                    if (keepNullable)
+                    {
+                        propertyType =
+                            $"{singlePropertyinEntity.PropertyType.GenericTypeArguments.First().Name}?";
+                    }
+                    else
+                    {
+                        propertyType =
+                            $"{singlePropertyinEntity.PropertyType.GenericTypeArguments.First().Name}";
+                    }
                 }
                 else
                 {

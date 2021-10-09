@@ -27,11 +27,12 @@ namespace SourceFilesGeneratorConsole
             sourceDataAccessAssemblyName = config["SourceDataAccessAssemblyName"];
             sourceEntitiesNamespace = config["SourceEntitiesNamespace"];
             basePagesRoute = config["BasePagesRoute"];
+            bool keepNullable = false;
             SourceFilesGenerator sourceFilesGenerator = new SourceFilesGenerator();
-            sourceFilesGenerator.GenerateFiles(modelsDestinationFolder, blazorFilesDestinationFolder, 
+            sourceFilesGenerator.GenerateFiles(modelsDestinationFolder, blazorFilesDestinationFolder,
                 sourceAssembliesDirectory,
-                sourceDataAccessAssemblyName, apiControllersDestinationFolder, 
-                sourceEntitiesNamespace, basePagesRoute);
+                sourceDataAccessAssemblyName, apiControllersDestinationFolder,
+                sourceEntitiesNamespace, basePagesRoute, keepNullable);
         }
     }
 }
