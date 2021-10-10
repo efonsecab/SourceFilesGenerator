@@ -21,25 +21,19 @@ namespace TestGenerateAdminCode
     /// </summary>
     public class SourceFilesGenerator
     {
-        /// <summary>
-        /// Generates models files based on a DbContext
-        /// </summary>
-        /// <param name="modelsDestFolder">Folder where to place generated models files</param>
-        /// <param name="blazorFilesDestFolder">Folder where to place generated blazor files</param>
-        /// <param name="assembliesDirectory">Folder where to search for assemblies</param>
-        /// <param name="dataAccessAssemblyName">FullName for the assembly with the DbContext</param>
-        /// <param name="apiControllersDestFolder">Folder where to place generated controller files</param>
-        /// <param name="entitiesNamespace">Namespace where to search for the Source Entity Framework entities</param>
-        /// <param name="basePagesRoute">Base route for the autogenenrated blazor pages</param>
-        /// <param name="keepNullable">When set to false, will force the generated properties to be non-nullable</param>
-        /// <param name="autoMappingProfileDestinationFolder">Folder where to place generated automapper profile</param>
-        public void GenerateFiles(string modelsDestFolder, string blazorFilesDestFolder,
-            string assembliesDirectory, string dataAccessAssemblyName,
-            string apiControllersDestFolder, string entitiesNamespace, string basePagesRoute,
-            bool keepNullable, string autoMappingProfileDestinationFolder)
+        private SourceFilesGeneratorConfiguration _sourceFilesGeneratorConfiguration;
+
+        public SourceFilesGenerator(SourceFilesGeneratorConfiguration sourceFilesGeneratorConfiguration)
         {
+            _sourceFilesGeneratorConfiguration = sourceFilesGeneratorConfiguration;
+        }
+        
+        public void GenerateFiles()
+        {
+            if (this._sourceFilesGeneratorConfiguration is null)
+                throw new Exception($"{nameof(this._sourceFilesGeneratorConfiguration)} is empty");
             List<TypeMapping> mappedTypes = new List<TypeMapping>(); ;
-            var assembliesInDir = Directory.GetFiles(assembliesDirectory, "*.dll");
+            var assembliesInDir = Directory.GetFiles(this._sourceFilesGeneratorConfiguration.SourceAssembliesDirectory, "*.dll");
             foreach (var singleAssemblyFile in assembliesInDir)
             {
                 try
@@ -52,18 +46,19 @@ namespace TestGenerateAdminCode
                 }
             }
 
-            var dataAccessAssembly = AppDomain.CurrentDomain.GetAssemblies().Where(p => p.GetName().Name == dataAccessAssemblyName).Single();
+            var dataAccessAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                .Where(p => p.GetName().Name == this._sourceFilesGeneratorConfiguration.SourceDataAccessAssemblyName).Single();
             var dbContext = dataAccessAssembly.GetTypes().Where(p => p.BaseType.Name == "DbContext").Single();
             var dbSets = dbContext.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
             foreach (var singleDbSet in dbSets)
             {
                 var entityType = singleDbSet.PropertyType.GenericTypeArguments.Single();
                 var entityProperties = entityType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-                string csCode = GenerateModelCode(dataAccessAssembly, entityType, entityProperties, keepNullable);
-                string blazorAddPageCode = GenerateBlazorAddPageCode(dataAccessAssembly, entityType, entityProperties, basePagesRoute);
-                string blazorListPageCode = GenerateBlazorListPageCode(dataAccessAssembly, entityType, entityProperties, basePagesRoute);
+                string csCode = GenerateModelCode(dataAccessAssembly, entityType, entityProperties, this._sourceFilesGeneratorConfiguration.KeepNullable);
+                string blazorAddPageCode = GenerateBlazorAddPageCode(dataAccessAssembly, entityType, entityProperties, this._sourceFilesGeneratorConfiguration.BasePagesRoute);
+                string blazorListPageCode = GenerateBlazorListPageCode(dataAccessAssembly, entityType, entityProperties, this._sourceFilesGeneratorConfiguration.BasePagesRoute);
                 string apiControllerCode = GenerateApiControllerCode(dataAccessAssembly, entityType, entityProperties, dbContext.Name, dbContext.Namespace,
-                    entitiesNamespace);
+                    this._sourceFilesGeneratorConfiguration.SourceEntitiesNamespace);
                 TypeMapping typeMapping = new TypeMapping()
                 {
                     SourceType = entityType,
@@ -79,24 +74,24 @@ namespace TestGenerateAdminCode
             }
             foreach (var singleMappedType in mappedTypes)
             {
-                string modelFileName = Path.Combine(modelsDestFolder, $"{singleMappedType.DestModelName}.cs");
+                string modelFileName = Path.Combine(this._sourceFilesGeneratorConfiguration.ModelsDestinationFolder, $"{singleMappedType.DestModelName}.cs");
                 File.WriteAllText(modelFileName, singleMappedType.DestModelTypeCodeString);
 
-                string blazorCreatePageFileName = Path.Combine(blazorFilesDestFolder, @$"{singleMappedType.SourceTypeName}", $"Create.razor");
+                string blazorCreatePageFileName = Path.Combine(this._sourceFilesGeneratorConfiguration.BlazorFilesDestinationFolder, @$"{singleMappedType.SourceTypeName}", $"Create.razor");
                 var blazorCreatePagedir = Directory.GetParent(blazorCreatePageFileName);
                 if (!Directory.Exists(blazorCreatePagedir.FullName))
                     Directory.CreateDirectory(blazorCreatePagedir.FullName);
                 File.WriteAllText(blazorCreatePageFileName, singleMappedType.BlazorCrud.CreatePageCodeString);
 
-                string blazorListPageFileName = Path.Combine(blazorFilesDestFolder, @$"{singleMappedType.SourceTypeName}", $"List.razor");
+                string blazorListPageFileName = Path.Combine(this._sourceFilesGeneratorConfiguration.BlazorFilesDestinationFolder, @$"{singleMappedType.SourceTypeName}", $"List.razor");
                 File.WriteAllText(blazorListPageFileName, singleMappedType.BlazorCrud.ListPageCodeString);
 
-                string apiControllerFileName = Path.Combine(apiControllersDestFolder, $"{singleMappedType.SourceType.Name}Controller.cs");
+                string apiControllerFileName = Path.Combine(this._sourceFilesGeneratorConfiguration.ApiControllersDestinationFolder, $"{singleMappedType.SourceType.Name}Controller.cs");
                 File.WriteAllText(apiControllerFileName, singleMappedType.DestApiControllerCodeString);
             }
             var entitTypes = dbSets.Select(p => p.PropertyType.GenericTypeArguments.Single()).ToList();
-            var globalProfileCode = GenerateAutoMappingGlobalProfile(entitTypes, entitiesNamespace);
-            string autoMapperProfileFileName = Path.Combine(autoMappingProfileDestinationFolder, "GlobalMappingProfile.cs");
+            var globalProfileCode = GenerateAutoMappingGlobalProfile(entitTypes, this._sourceFilesGeneratorConfiguration.SourceEntitiesNamespace);
+            string autoMapperProfileFileName = Path.Combine(this._sourceFilesGeneratorConfiguration.AutoMappingProfileDestinationFolder, "GlobalMappingProfile.cs");
             if (!Directory.Exists(Directory.GetParent(autoMapperProfileFileName).FullName))
             {
                 Directory.CreateDirectory(Directory.GetParent(autoMapperProfileFileName).FullName);
@@ -430,5 +425,45 @@ namespace TestGenerateAdminCode
     {
         public string CreatePageCodeString { get; set; }
         public string ListPageCodeString { get; set; }
+    }
+
+    public class SourceFilesGeneratorConfiguration
+    {
+        /// <summary>
+        /// Folder where to place generated models files
+        /// </summary>
+        public string ModelsDestinationFolder { get; set; }
+        /// <summary>
+        /// Folder where to place generated blazor files
+        /// </summary>
+        public string BlazorFilesDestinationFolder { get; set; }
+        /// <summary>
+        /// Folder where to search for assemblies
+        /// </summary>
+        public string SourceAssembliesDirectory { get; set; }
+        /// <summary>
+        /// FullName for the assembly with the DbContext
+        /// </summary>
+        public string SourceDataAccessAssemblyName { get; set; }
+        /// <summary>
+        /// Folder where to place generated controller files
+        /// </summary>
+        public string ApiControllersDestinationFolder { get; set; }
+        /// <summary>
+        /// Namespace where to search for the Source Entity Framework entities
+        /// </summary>
+        public string SourceEntitiesNamespace { get; set; }
+        /// <summary>
+        /// Base route for the autogenenrated blazor pages
+        /// </summary>
+        public string BasePagesRoute { get; set; }
+        /// <summary>
+        /// When set to false, will force the generated properties to be non-nullable
+        /// </summary>
+        public bool KeepNullable { get; set; }
+        /// <summary>
+        /// Folder where to place generated automapper profile
+        /// </summary>
+        public string AutoMappingProfileDestinationFolder { get; set; }
     }
 }
