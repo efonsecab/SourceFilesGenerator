@@ -254,6 +254,7 @@ namespace TestGenerateAdminCode
         {
             CodeWriter codeWriter = new CodeWriter();
             codeWriter.WriteLine($"@page \"{basePageRoute}/{entityType.Name}/List\"");
+            codeWriter.WriteLine($"<a class=\"btn btn-primary\" href=\"{basePageRoute}/{entityType.Name}/Add\">Add new {entityType.Name.Humanize(LetterCasing.Title)}</a>");
             codeWriter.WriteLine();
             codeWriter.WriteLine($"@if (this._all{entityType.Name.Pluralize()} != null)");
             codeWriter.WriteLine("{");
