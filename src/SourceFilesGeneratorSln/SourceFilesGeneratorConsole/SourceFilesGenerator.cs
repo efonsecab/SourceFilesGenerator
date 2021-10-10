@@ -384,6 +384,10 @@ namespace TestGenerateAdminCode
 
         private static void GenerateListEndpoint(Type entityType, string dbContextName, StringBuilder strBuilder)
         {
+            strBuilder.AppendLine("/// <summary>");
+            strBuilder.AppendLine($"/// Retrieves the list of {entityType.Name.Humanize().Pluralize()}");
+            strBuilder.AppendLine("/// </summary>");
+            strBuilder.AppendLine($"/// <returns>An array of <see cref=\"{entityType.Name}\"/> </returns>");
             strBuilder.AppendLine("[HttpGet(\"[action]\")]");
             strBuilder.AppendLine($"public async Task<{entityType.Name}Model[]> List{entityType.Name.Pluralize()}()");
             strBuilder.AppendLine("{");
@@ -393,6 +397,12 @@ namespace TestGenerateAdminCode
 
         private static void GenerateAddEndpoint(Type entityType, string dbContextName, StringBuilder strBuilder)
         {
+
+            strBuilder.AppendLine("/// <summary>");
+            strBuilder.AppendLine($"/// Adds a new record of {entityType.Name}");
+            strBuilder.AppendLine("/// </summary>");
+            strBuilder.AppendLine($"/// <param name=\"{entityType.Name.ToLower()}Model\"></param>");
+            strBuilder.AppendLine($"/// <returns>The created {entityType.Name.ToLower()}Model. <see cref=\"{entityType.Name}Model\"/></returns>");
             strBuilder.AppendLine("[HttpPost(\"[action]\")]");
             strBuilder.AppendLine($"public async Task<{entityType.Name}Model> Add{entityType.Name}({entityType.Name}Model {entityType.Name.ToLower()}Model)");
             strBuilder.AppendLine("{");
