@@ -77,7 +77,7 @@ namespace TestGenerateAdminCode
                 string modelFileName = Path.Combine(this._sourceFilesGeneratorConfiguration.ModelsDestinationFolder, $"{singleMappedType.DestModelName}.cs");
                 File.WriteAllText(modelFileName, singleMappedType.DestModelTypeCodeString);
 
-                string blazorCreatePageFileName = Path.Combine(this._sourceFilesGeneratorConfiguration.BlazorFilesDestinationFolder, @$"{singleMappedType.SourceTypeName}", $"Create.razor");
+                string blazorCreatePageFileName = Path.Combine(this._sourceFilesGeneratorConfiguration.BlazorFilesDestinationFolder, @$"{singleMappedType.SourceTypeName}", $"Add.razor");
                 var blazorCreatePagedir = Directory.GetParent(blazorCreatePageFileName);
                 if (!Directory.Exists(blazorCreatePagedir.FullName))
                     Directory.CreateDirectory(blazorCreatePagedir.FullName);
