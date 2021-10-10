@@ -322,7 +322,7 @@ namespace TestGenerateAdminCode
             codeWriter.WriteLine("private NavigationManager _navigationManager {get;set;}");
             codeWriter.WriteLine("protected override async Task OnInitializedAsync()");
             codeWriter.WriteLine("{");
-            codeWriter.WriteLine($"string requesturl = \"api/{entityType.Name}/List{entityType.Name}\";");
+            codeWriter.WriteLine($"string requesturl = \"api/{entityType.Name}/List{entityType.Name.Pluralize()}\";");
             codeWriter.WriteLine($"this._all{entityType.Name.Pluralize()} = await this._httpClient.GetFromJsonAsync<{entityType.Name}Model[]>(requesturl);");
             codeWriter.WriteLine("}");
             codeWriter.WriteLine("}");
@@ -385,7 +385,7 @@ namespace TestGenerateAdminCode
         private static void GenerateListEndpoint(Type entityType, string dbContextName, StringBuilder strBuilder)
         {
             strBuilder.AppendLine("[HttpGet(\"[action]\")]");
-            strBuilder.AppendLine($"public async Task<{entityType.Name}Model[]> List{entityType.Name}()");
+            strBuilder.AppendLine($"public async Task<{entityType.Name}Model[]> List{entityType.Name.Pluralize()}()");
             strBuilder.AppendLine("{");
             strBuilder.AppendLine($"return await this._{dbContextName.ToLower()}.{entityType.Name}.Select(p => this._mapper.Map<{entityType.Name}, {entityType.Name}Model>(p)).ToArrayAsync();");
             strBuilder.AppendLine("}");
