@@ -13,3 +13,4 @@ Ideally we can turn this into a Visual Studio extension, similar to EF Core Powe
 ## Limitations
 * Will only generated Data Annotations on models when source entities are using Data Annotations approach
 * Does not generate UI controls for navigation properties/lookups
+* Creates a controller per entity
