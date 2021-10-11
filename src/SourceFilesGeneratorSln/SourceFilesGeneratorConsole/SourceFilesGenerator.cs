@@ -105,6 +105,7 @@ namespace TestGenerateAdminCode
             bool keepNullable)
         {
             StringBuilder strBuilder = new StringBuilder();
+            AppendAuthorComments(strBuilder);
             strBuilder.AppendLine("using System;");
             strBuilder.AppendLine("using System.ComponentModel.DataAnnotations;");
             strBuilder.AppendLine();
@@ -364,6 +365,7 @@ namespace TestGenerateAdminCode
             string dbContextName, string dbContextNamespace, string entitiesNamespace)
         {
             StringBuilder strBuilder = new StringBuilder();
+            AppendAuthorComments(strBuilder);
             strBuilder.AppendLine("using Microsoft.AspNetCore.Mvc;");
             strBuilder.AppendLine("using System.Threading.Tasks;");
             strBuilder.AppendLine("using Microsoft.EntityFrameworkCore;");
@@ -388,6 +390,15 @@ namespace TestGenerateAdminCode
             strBuilder.AppendLine("}");
             var csCode = CSharpSyntaxTree.ParseText(strBuilder.ToString()).GetRoot().NormalizeWhitespace().ToFullString();
             return csCode;
+        }
+
+        private static void AppendAuthorComments(StringBuilder strBuilder)
+        {
+            strBuilder.AppendLine("/*");
+            strBuilder.AppendLine($"* Code has been automatically created by {nameof(SourceFilesGenerator)}.");
+            strBuilder.AppendLine("* A tool created by Eduardo Fonseca B: https://www.linkedin.com/in/pticostarica");
+            strBuilder.AppendLine("* You can hire Eduardo's services on Upwork: https://www.upwork.com/o/profiles/users/~01dfba7bd0d1f23c9f/");
+            strBuilder.AppendLine("**/");
         }
 
         private static void GenerateListEndpoint(Type entityType, string dbContextName, StringBuilder strBuilder)
