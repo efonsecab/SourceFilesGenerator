@@ -48,8 +48,10 @@ namespace TestGenerateAdminCode
 
             var dataAccessAssembly = AppDomain.CurrentDomain.GetAssemblies()
                 .Where(p => p.GetName().Name == this._sourceFilesGeneratorConfiguration.SourceDataAccessAssemblyName).Single();
-            var dbContext = dataAccessAssembly.GetTypes().Where(p => p.BaseType.Name == "DbContext").Single();
-            var dbSets = dbContext.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+
+            var dbContext = dataAccessAssembly.GetTypes().Where(p => p.Name == this._sourceFilesGeneratorConfiguration.SourceDbContextName).Single();
+            var dbSets = dbContext.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Where(p=>p.PropertyType != null && p.PropertyType.Name == "DbSet`1");
             var entitTypes = dbSets.Select(p => p.PropertyType.GenericTypeArguments.Single()).ToList();
             foreach (var singleDbSet in dbSets)
             {
@@ -475,5 +477,6 @@ namespace TestGenerateAdminCode
         /// Folder where to place generated automapper profile
         /// </summary>
         public string AutoMappingProfileDestinationFolder { get; set; }
+        public string SourceDbContextName { get; set; }
     }
 }
