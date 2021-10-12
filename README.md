@@ -14,3 +14,14 @@ Ideally we can turn this into a Visual Studio extension, similar to EF Core Powe
 * Will only generated Data Annotations on models when source entities are using Data Annotations approach
 * Does not generate UI controls for navigation properties/lookups
 * Creates a controller per entity
+* In the Api project you will need to manuall add references to
+  * The given Db Context Assembly
+  * AutoMapper.Extensions.Microsoft.DependencyInjection
+  * Any other assemblies references from you given Db Context Assembly, which are not referenced yet on the Api project
+* You need to manuall add the AutoMapper initialization code in your ConfigureService method usually found in your Startup.cs
+   ```
+    services.AddAutoMapper(configAction =>
+    {
+       configAction.AddMaps(new[] { typeof(Startup).Assembly });
+    }); 
+   ```
